@@ -19,9 +19,7 @@ class SplitScreen extends StatelessWidget {
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 24,
+          left: 24, right: 24, top: 24,
           bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
         ),
         child: Column(
@@ -72,174 +70,139 @@ class SplitScreen extends StatelessWidget {
   void _showAssignDialog(BuildContext context, dynamic item) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) {
-        return StatefulBuilder(builder: (ctx, setState) {
-          final provider = ctx.watch<SplitBillProvider>();
-          final assignees = provider.assigneesOf(item.id);
-          return Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.name,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
-                Text(_fmt(item.total),
-                    style:
-                        const TextStyle(color: Color(0xFF4361EE), fontSize: 14)),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    TextButton(
-                      onPressed: () {
-                        provider.assignAll(item.id);
-                        setState(() {});
-                      },
-                      child: const Text('Semua'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        provider.unassignAll(item.id);
-                        setState(() {});
-                      },
-                      child: const Text('Hapus semua'),
-                    ),
-                  ],
-                ),
-                ...provider.people.map((p) => CheckboxListTile(
-                      title: Text(p.name),
-                      value: assignees.contains(p.id),
-                      activeColor: const Color(0xFF4361EE),
-                      onChanged: (_) {
-                        provider.toggleAssignment(item.id, p.id);
-                        setState(() {});
-                      },
-                    )),
-                const SizedBox(height: 8),
-                FilledButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                    backgroundColor: const Color(0xFF4361EE),
-                  ),
-                  child: const Text('Selesai'),
-                ),
-              ],
-            ),
-          );
-        });
-      },
+      builder: (ctx) => _AssignDialog(item: item, fmt: _fmt),
     );
   }
 
   void _showSummary(BuildContext context) {
-    final provider = context.read<SplitBillProvider>();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.6,
-        builder: (ctx, scroll) => Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Ringkasan Tagihan',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              Expanded(
-                child: ListView(
-                  controller: scroll,
-                  children: provider.people.map((p) {
-                    final subtotal = provider.subtotalFor(p.id);
-                    final total = provider.totalFor(p.id);
-                    final items = provider.receipt!.items
-                        .where((i) => provider.assigneesOf(i.id).contains(p.id))
-                        .toList();
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      builder: (ctx) {
+        final provider = ctx.read<SplitBillProvider>();
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.65,
+          builder: (ctx, scroll) => Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Ringkasan Tagihan',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: ListView(
+                    controller: scroll,
+                    children: [
+                      ...provider.people.map((p) {
+                        final subtotal = provider.subtotalFor(p.id);
+                        final total = provider.totalFor(p.id);
+                        final itemsWithQty = provider.receipt!.items
+                            .where((i) => provider.qtyFor(i.id, p.id) > 0)
+                            .toList();
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(p.name,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16)),
-                                Text(_fmt(total),
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: Color(0xFF4361EE))),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            ...items.map((i) {
-                              final count = provider.assigneesOf(i.id).length;
-                              final share = i.total / count;
-                              return Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 2),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                // Nama + total — fix overflow
+                                Row(
                                   children: [
-                                    Text(
-                                      count > 1
-                                          ? '${i.name} (÷$count)'
-                                          : i.name,
-                                      style:
-                                          TextStyle(color: Colors.grey[600]),
+                                    Expanded(
+                                      child: Text(
+                                        p.name,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 15),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
-                                    Text(_fmt(share),
-                                        style:
-                                            TextStyle(color: Colors.grey[600])),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _fmt(total),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                          color: Color(0xFF4361EE)),
+                                    ),
                                   ],
                                 ),
-                              );
-                            }),
-                            if (provider.receipt!.tax > 0 ||
-                                provider.receipt!.shipping > 0) ...[
-                              const Divider(height: 12),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text('Pajak+Ongkir (proporsional)',
-                                      style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 12)),
-                                  Text(
-                                      _fmt(total - subtotal),
-                                      style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 12)),
+                                const SizedBox(height: 8),
+                                // Daftar item orang ini
+                                ...itemsWithQty.map((i) {
+                                  final qty = provider.qtyFor(i.id, p.id);
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 2),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            qty > 1 ? '${i.name} ×$qty' : i.name,
+                                            style: TextStyle(
+                                                color: Colors.grey[600],
+                                                fontSize: 13),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          _fmt(qty * i.price),
+                                          style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 13),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                                // Pajak + ongkir proporsional
+                                if (provider.receipt!.tax > 0 ||
+                                    provider.receipt!.shipping > 0) ...[
+                                  const Divider(height: 12),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          'Pajak & Ongkir (proporsional)',
+                                          style: TextStyle(
+                                              color: Colors.grey[500],
+                                              fontSize: 12),
+                                        ),
+                                      ),
+                                      Text(
+                                        _fmt(total - subtotal),
+                                        style: TextStyle(
+                                            color: Colors.grey[500],
+                                            fontSize: 12),
+                                      ),
+                                    ],
+                                  ),
                                 ],
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -252,14 +215,14 @@ class SplitScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('Splitbill'),
+        title: const Text('Splitbill Aja'),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF1A1A2E),
         elevation: 0,
       ),
       body: Column(
         children: [
-          // Daftar orang
+          // Header: daftar orang
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -269,8 +232,7 @@ class SplitScreen extends StatelessWidget {
                 Row(
                   children: [
                     const Text('Siapa saja?',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 15)),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     const Spacer(),
                     TextButton.icon(
                       onPressed: () => _showAddPerson(context),
@@ -288,12 +250,12 @@ class SplitScreen extends StatelessWidget {
                 else
                   Wrap(
                     spacing: 8,
+                    runSpacing: 4,
                     children: provider.people
                         .map((p) => Chip(
                               label: Text(p.name),
                               deleteIcon: const Icon(Icons.close, size: 14),
-                              onDeleted: () =>
-                                  provider.removePerson(p.id),
+                              onDeleted: () => provider.removePerson(p.id),
                             ))
                         .toList(),
                   ),
@@ -306,19 +268,27 @@ class SplitScreen extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.all(12),
               children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                  child: Text('Tap item untuk assign ke orang',
-                      style: TextStyle(color: Colors.grey)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  child: Text(
+                    provider.people.isEmpty
+                        ? 'Tambah orang dulu, lalu tap item untuk assign'
+                        : 'Tap item untuk atur siapa ambil berapa',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
                 ),
                 ...receipt.items.map((item) {
-                  final assignees = provider.assigneesOf(item.id);
-                  final assigneeNames = assignees
-                      .map((id) => provider.people
-                          .firstWhere((p) => p.id == id,
-                              orElse: () => Person(id: '', name: '?'))
-                          .name)
-                      .where((n) => n.isNotEmpty)
+                  final assigned = provider.assignedQtyTotal(item.id);
+                  final remaining = provider.remainingQty(item.id);
+                  final isDone = assigned == item.qty && item.qty > 0;
+
+                  // Ringkasan assign: "A ×2, B ×1"
+                  final assignSummary = provider.people
+                      .where((p) => provider.qtyFor(item.id, p.id) > 0)
+                      .map((p) {
+                        final q = provider.qtyFor(item.id, p.id);
+                        return q > 1 ? '${p.name} ×$q' : p.name;
+                      })
                       .join(', ');
 
                   return Card(
@@ -326,30 +296,75 @@ class SplitScreen extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                     elevation: 1,
-                    child: ListTile(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
                       onTap: provider.people.isEmpty
                           ? null
                           : () => _showAssignDialog(context, item),
-                      title: Text(item.name,
-                          style: const TextStyle(fontWeight: FontWeight.w500)),
-                      subtitle: assignees.isEmpty
-                          ? Text('Belum di-assign',
-                              style: TextStyle(color: Colors.red[300]))
-                          : Text(assigneeNames,
-                              style:
-                                  const TextStyle(color: Color(0xFF4361EE))),
-                      trailing: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(_fmt(item.total),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold)),
-                          if (item.qty > 1)
-                            Text('${item.qty}x ${_fmt(item.price)}',
-                                style: TextStyle(
-                                    fontSize: 11, color: Colors.grey[500])),
-                        ],
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        child: Row(
+                          children: [
+                            // Status icon
+                            Icon(
+                              isDone
+                                  ? Icons.check_circle
+                                  : assigned > 0
+                                      ? Icons.pending
+                                      : Icons.radio_button_unchecked,
+                              color: isDone
+                                  ? const Color(0xFF06D6A0)
+                                  : assigned > 0
+                                      ? Colors.orange
+                                      : Colors.grey[300],
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(item.name,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 14)),
+                                  const SizedBox(height: 2),
+                                  assigned == 0
+                                      ? Text('Belum di-assign',
+                                          style: TextStyle(
+                                              color: Colors.red[300],
+                                              fontSize: 12))
+                                      : Text(assignSummary,
+                                          style: const TextStyle(
+                                              color: Color(0xFF4361EE),
+                                              fontSize: 12),
+                                          overflow: TextOverflow.ellipsis),
+                                  if (!isDone && assigned > 0)
+                                    Text('Sisa $remaining unit',
+                                        style: TextStyle(
+                                            color: Colors.orange[700],
+                                            fontSize: 11)),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(_fmt(item.total),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14)),
+                                if (item.qty > 1)
+                                  Text('${item.qty}× ${_fmt(item.price)}',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey[500])),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );
@@ -378,6 +393,270 @@ class SplitScreen extends StatelessWidget {
               ),
             )
           : null,
+    );
+  }
+}
+
+class _AssignDialog extends StatefulWidget {
+  final dynamic item;
+  final String Function(double) fmt;
+  const _AssignDialog({required this.item, required this.fmt});
+
+  @override
+  State<_AssignDialog> createState() => _AssignDialogState();
+}
+
+class _AssignDialogState extends State<_AssignDialog> {
+  // personId -> controller
+  final Map<String, TextEditingController> _controllers = {};
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncControllers();
+  }
+
+  void _syncControllers() {
+    final provider = context.read<SplitBillProvider>();
+    for (final p in provider.people) {
+      final qty = provider.qtyFor(widget.item.id, p.id);
+      if (!_controllers.containsKey(p.id)) {
+        _controllers[p.id] = TextEditingController(text: qty == 0 ? '' : '$qty');
+      }
+    }
+  }
+
+  void _updateFromText(SplitBillProvider provider, String personId, String value) {
+    final parsed = int.tryParse(value) ?? 0;
+    final current = provider.qtyFor(widget.item.id, personId);
+    final remaining = provider.remainingQty(widget.item.id);
+    final max = current + remaining;
+    final clamped = parsed.clamp(0, max);
+    provider.setQty(widget.item.id, personId, clamped);
+    // Koreksi field jika nilai di-clamp
+    if (clamped != parsed) {
+      final ctrl = _controllers[personId]!;
+      ctrl.text = clamped == 0 ? '' : '$clamped';
+      ctrl.selection = TextSelection.collapsed(offset: ctrl.text.length);
+    }
+    setState(() {});
+  }
+
+  void _setQty(SplitBillProvider provider, String personId, int newQty) {
+    provider.setQty(widget.item.id, personId, newQty);
+    final ctrl = _controllers[personId]!;
+    ctrl.text = newQty == 0 ? '' : '$newQty';
+    ctrl.selection = TextSelection.collapsed(offset: ctrl.text.length);
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    for (final c in _controllers.values) { c.dispose(); }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<SplitBillProvider>();
+    final item = widget.item;
+    final assigned = provider.assignedQtyTotal(item.id);
+    final remaining = provider.remainingQty(item.id);
+    _syncControllers();
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24, right: 24, top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(item.name,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              Text(widget.fmt(item.price),
+                  style: const TextStyle(color: Color(0xFF4361EE), fontSize: 13)),
+              Text(' × ${item.qty} = ${widget.fmt(item.total)}',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Progress bar
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: item.qty > 0 ? assigned / item.qty : 0,
+                    minHeight: 8,
+                    backgroundColor: Colors.grey[200],
+                    valueColor: AlwaysStoppedAnimation(
+                      assigned == item.qty
+                          ? const Color(0xFF06D6A0)
+                          : const Color(0xFF4361EE),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '$assigned/${item.qty}',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: assigned == item.qty
+                      ? const Color(0xFF06D6A0)
+                      : remaining > 0 ? Colors.orange : Colors.red,
+                ),
+              ),
+            ],
+          ),
+          if (remaining > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text('Sisa $remaining unit belum di-assign',
+                  style: TextStyle(color: Colors.orange[700], fontSize: 12)),
+            ),
+          const SizedBox(height: 4),
+
+          // Tombol bagi rata / reset
+          Row(
+            children: [
+              TextButton.icon(
+                onPressed: () {
+                  provider.distributeEvenly(item.id);
+                  // Sync semua controller setelah distribute
+                  for (final p in provider.people) {
+                    final q = provider.qtyFor(item.id, p.id);
+                    final ctrl = _controllers[p.id];
+                    if (ctrl != null) {
+                      ctrl.text = q == 0 ? '' : '$q';
+                      ctrl.selection = TextSelection.collapsed(offset: ctrl.text.length);
+                    }
+                  }
+                  setState(() {});
+                },
+                icon: const Icon(Icons.balance, size: 16),
+                label: const Text('Bagi rata'),
+              ),
+              TextButton.icon(
+                onPressed: () {
+                  provider.unassignAll(item.id);
+                  for (final ctrl in _controllers.values) { ctrl.text = ''; }
+                  setState(() {});
+                },
+                icon: const Icon(Icons.clear_all, size: 16),
+                label: const Text('Reset'),
+              ),
+            ],
+          ),
+          const Divider(),
+
+          // Stepper + input per orang
+          ...provider.people.map((p) {
+            final qty = provider.qtyFor(item.id, p.id);
+            final ctrl = _controllers[p.id]!;
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(p.name,
+                            style: const TextStyle(fontSize: 15),
+                            overflow: TextOverflow.ellipsis),
+                        if (qty > 0)
+                          Text(widget.fmt(qty * item.price as double),
+                              style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _QtyButton(
+                    icon: Icons.remove,
+                    enabled: qty > 0,
+                    onTap: () => _setQty(provider, p.id, qty - 1),
+                  ),
+                  // Input angka langsung
+                  SizedBox(
+                    width: 48,
+                    height: 36,
+                    child: TextField(
+                      controller: ctrl,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
+                      decoration: InputDecoration(
+                        contentPadding: EdgeInsets.zero,
+                        isDense: true,
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      onChanged: (v) => _updateFromText(provider, p.id, v),
+                    ),
+                  ),
+                  _QtyButton(
+                    icon: Icons.add,
+                    enabled: remaining > 0,
+                    onTap: () => _setQty(provider, p.id, qty + 1),
+                  ),
+                ],
+              ),
+            );
+          }),
+
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              backgroundColor: const Color(0xFF4361EE),
+            ),
+            child: const Text('Selesai'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QtyButton extends StatelessWidget {
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _QtyButton({required this.icon, required this.enabled, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: enabled
+              ? const Color(0xFF4361EE).withValues(alpha: 0.1)
+              : Colors.grey[100],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon,
+            size: 18,
+            color: enabled ? const Color(0xFF4361EE) : Colors.grey[300]),
+      ),
     );
   }
 }

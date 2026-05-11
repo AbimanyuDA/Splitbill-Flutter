@@ -18,7 +18,7 @@ class SplitBillApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => SplitBillProvider(),
       child: MaterialApp(
-        title: 'Splitbill',
+        title: 'Splitbill Aja',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorSchemeSeed: const Color(0xFF4361EE),

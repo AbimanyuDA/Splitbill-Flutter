@@ -66,7 +66,7 @@ class HomeScreen extends StatelessWidget {
             children: [
               const SizedBox(height: 32),
               const Text(
-                'Splitbill',
+                'Splitbill Aja',
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,

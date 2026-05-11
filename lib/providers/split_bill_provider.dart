@@ -5,7 +5,6 @@ import '../models/receipt_item.dart';
 class Person {
   final String id;
   String name;
-
   Person({required this.id, required this.name});
 }
 
@@ -13,8 +12,8 @@ class SplitBillProvider extends ChangeNotifier {
   Receipt? receipt;
   final List<Person> people = [];
 
-  // itemId -> list of personId yang menanggung item ini
-  final Map<String, List<String>> _assignments = {};
+  // itemId -> { personId -> qty yang diambil orang ini }
+  final Map<String, Map<String, int>> _assignments = {};
 
   void setReceipt(Receipt r) {
     receipt = r;
@@ -29,41 +28,78 @@ class SplitBillProvider extends ChangeNotifier {
 
   void removePerson(String personId) {
     people.removeWhere((p) => p.id == personId);
-    _assignments.forEach((itemId, ids) => ids.remove(personId));
-    notifyListeners();
-  }
-
-  List<String> assigneesOf(String itemId) => _assignments[itemId] ?? [];
-
-  void toggleAssignment(String itemId, String personId) {
-    final list = _assignments.putIfAbsent(itemId, () => []);
-    if (list.contains(personId)) {
-      list.remove(personId);
-    } else {
-      list.add(personId);
+    for (final map in _assignments.values) {
+      map.remove(personId);
     }
     notifyListeners();
   }
 
-  void assignAll(String itemId) {
-    _assignments[itemId] = people.map((p) => p.id).toList();
+  // Berapa unit item ini yang diambil oleh personId
+  int qtyFor(String itemId, String personId) =>
+      _assignments[itemId]?[personId] ?? 0;
+
+  // Set qty seseorang untuk item tertentu
+  void setQty(String itemId, String personId, int qty) {
+    final item = receipt?.items.firstWhere((i) => i.id == itemId);
+    if (item == null) return;
+    final map = _assignments.putIfAbsent(itemId, () => {});
+    if (qty <= 0) {
+      map.remove(personId);
+    } else {
+      map[personId] = qty;
+    }
+    notifyListeners();
+  }
+
+  // Total qty yang sudah di-assign untuk satu item
+  int assignedQtyTotal(String itemId) {
+    final map = _assignments[itemId];
+    if (map == null) return 0;
+    return map.values.fold(0, (a, b) => a + b);
+  }
+
+  // Sisa qty yang belum di-assign
+  int remainingQty(String itemId) {
+    final item = receipt?.items.firstWhere((i) => i.id == itemId);
+    if (item == null) return 0;
+    return item.qty - assignedQtyTotal(itemId);
+  }
+
+  // Daftar orang yang punya qty > 0 untuk item ini
+  List<String> assigneesOf(String itemId) {
+    final map = _assignments[itemId];
+    if (map == null) return [];
+    return map.entries.where((e) => e.value > 0).map((e) => e.key).toList();
+  }
+
+  // Bagi rata semua qty item ke semua orang
+  void distributeEvenly(String itemId) {
+    final item = receipt?.items.firstWhere((i) => i.id == itemId);
+    if (item == null || people.isEmpty) return;
+    final map = _assignments.putIfAbsent(itemId, () => {});
+    map.clear();
+    final base = item.qty ~/ people.length;
+    int remainder = item.qty % people.length;
+    for (final p in people) {
+      final extra = remainder > 0 ? 1 : 0;
+      remainder--;
+      if (base + extra > 0) map[p.id] = base + extra;
+    }
     notifyListeners();
   }
 
   void unassignAll(String itemId) {
-    _assignments[itemId] = [];
+    _assignments[itemId] = {};
     notifyListeners();
   }
 
-  // Subtotal item yang ditanggung tiap orang
+  // Subtotal item yang ditanggung tiap orang (berdasarkan qty masing-masing)
   double subtotalFor(String personId) {
     if (receipt == null) return 0;
     double total = 0;
     for (final item in receipt!.items) {
-      final assignees = assigneesOf(item.id);
-      if (assignees.contains(personId) && assignees.isNotEmpty) {
-        total += item.total / assignees.length;
-      }
+      final qty = qtyFor(item.id, personId);
+      total += qty * item.price;
     }
     return total;
   }
@@ -78,13 +114,13 @@ class SplitBillProvider extends ChangeNotifier {
     return sub + (sub / totalSub) * extra;
   }
 
-  double get _totalAssignedSubtotal {
-    return people.fold(0.0, (sum, p) => sum + subtotalFor(p.id));
-  }
+  double get _totalAssignedSubtotal =>
+      people.fold(0.0, (sum, p) => sum + subtotalFor(p.id));
 
+  // Item dianggap selesai kalau total assigned qty == item.qty
   bool get isFullyAssigned {
     if (receipt == null) return false;
-    return receipt!.items.every((item) => (assigneesOf(item.id)).isNotEmpty);
+    return receipt!.items.every((item) => assignedQtyTotal(item.id) == item.qty);
   }
 
   void updateItemName(String itemId, String name) {
@@ -99,6 +135,8 @@ class SplitBillProvider extends ChangeNotifier {
 
   void updateItemQty(String itemId, int qty) {
     receipt?.items.firstWhere((i) => i.id == itemId).qty = qty;
+    // Reset assignment jika qty berubah
+    _assignments.remove(itemId);
     notifyListeners();
   }
 

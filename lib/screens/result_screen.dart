@@ -7,7 +7,8 @@ class ResultScreen extends StatelessWidget {
   const ResultScreen({super.key});
 
   String _fmt(double v) {
-    if (v == v.truncate()) return 'Rp ${v.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
+    if (v == v.truncate())
+      return 'Rp ${v.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
     return 'Rp ${v.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
   }
 
@@ -38,17 +39,25 @@ class ResultScreen extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                _SectionHeader(title: 'Item (${receipt.items.length})', icon: Icons.receipt_long),
+                _SectionHeader(
+                  title: 'Item (${receipt.items.length})',
+                  icon: Icons.receipt_long,
+                ),
                 const SizedBox(height: 8),
-                ...receipt.items.map((item) => _ItemCard(
-                      item: item,
-                      onDelete: () => provider.removeItem(item.id),
-                      onNameChange: (v) => provider.updateItemName(item.id, v),
-                      onPriceChange: (v) => provider.updateItemPrice(item.id, v),
-                      onQtyChange: (v) => provider.updateItemQty(item.id, v),
-                    )),
+                ...receipt.items.map(
+                  (item) => _ItemCard(
+                    item: item,
+                    onDelete: () => provider.removeItem(item.id),
+                    onNameChange: (v) => provider.updateItemName(item.id, v),
+                    onPriceChange: (v) => provider.updateItemPrice(item.id, v),
+                    onQtyChange: (v) => provider.updateItemQty(item.id, v),
+                  ),
+                ),
                 const SizedBox(height: 16),
-                _SectionHeader(title: 'Pajak & Ongkir', icon: Icons.calculate_outlined),
+                _SectionHeader(
+                  title: 'Pajak & Ongkir',
+                  icon: Icons.calculate_outlined,
+                ),
                 const SizedBox(height: 8),
                 _ExtraCard(
                   label: 'Pajak',
@@ -73,11 +82,11 @@ class ResultScreen extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: FilledButton.icon(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SplitScreen()),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const SplitScreen())),
             icon: const Icon(Icons.people_alt_rounded),
-            label: const Text('Lanjut ke Splitbill', style: TextStyle(fontSize: 16)),
+            label: const Text('Lanjut', style: TextStyle(fontSize: 16)),
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
               backgroundColor: const Color(0xFF4361EE),
@@ -100,8 +109,14 @@ class _SectionHeader extends StatelessWidget {
       children: [
         Icon(icon, size: 18, color: const Color(0xFF4361EE)),
         const SizedBox(width: 8),
-        Text(title,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1A1A2E))),
+        Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+            color: Color(0xFF1A1A2E),
+          ),
+        ),
       ],
     );
   }
@@ -146,7 +161,11 @@ class _ItemCard extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: Colors.red,
+                    size: 20,
+                  ),
                   onPressed: onDelete,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -198,7 +217,11 @@ class _ExtraCard extends StatelessWidget {
   final double value;
   final ValueChanged<double> onChanged;
 
-  const _ExtraCard({required this.label, required this.value, required this.onChanged});
+  const _ExtraCard({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -240,7 +263,8 @@ class _TotalSummary extends StatelessWidget {
           children: [
             _summaryRow('Subtotal', fmt(receipt.subtotal), false),
             if (receipt.tax > 0) _summaryRow('Pajak', fmt(receipt.tax), false),
-            if (receipt.shipping > 0) _summaryRow('Ongkir', fmt(receipt.shipping), false),
+            if (receipt.shipping > 0)
+              _summaryRow('Ongkir', fmt(receipt.shipping), false),
             const Divider(color: Colors.white38, height: 16),
             _summaryRow('Total', fmt(receipt.total), true),
           ],
@@ -259,7 +283,10 @@ class _TotalSummary extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [Text(label, style: style), Text(value, style: style)],
+        children: [
+          Text(label, style: style),
+          Text(value, style: style),
+        ],
       ),
     );
   }
